@@ -75,22 +75,21 @@ synthesis:
 
 pack:
 	cd ${BOARD_BUILDDIR} && \
-		symbiflow_pack -e ${TOP}.eblif -d ${DEVICE} ${SDC_CMD} 2>&1 > /dev/null
+		symbiflow_pack -e ${TOP}.eblif -d ${DEVICE} ${SDC_CMD}
 
 place:
 	cd ${BOARD_BUILDDIR} && \
-		symbiflow_place -e ${TOP}.eblif -d ${DEVICE} ${PCF_CMD} -n ${TOP}.net -P \
-		${PARTNAME} ${SDC_CMD} 2>&1 > /dev/null
+		symbiflow_place -e ${TOP}.eblif -d ${DEVICE} ${PCF_CMD} -n ${TOP}.net -P ${PARTNAME} ${SDC_CMD}
 
 route:
 	cd ${BOARD_BUILDDIR} && \
-		symbiflow_route -e ${TOP}.eblif -d ${DEVICE} ${SDC_CMD} 2>&1 > /dev/null
+		symbiflow_route -e ${TOP}.eblif -d ${DEVICE} ${SDC_CMD}
 
-write_fasm:
+fasm:
 	cd ${BOARD_BUILDDIR} && \
 		symbiflow_write_fasm -e ${TOP}.eblif -d ${DEVICE}
 
-write_bitstream:
+bitstream:
 	cd ${BOARD_BUILDDIR} && \
 		symbiflow_write_bitstream -d ${BITSTREAM_DEVICE} -f ${TOP}.fasm -p ${PARTNAME} -b ${TOP}.bit
 
@@ -101,9 +100,11 @@ upload:
 	fi
 	openFPGALoader -b ${OFL_BOARD} ${BOARD_BUILDDIR}/${TOP}.bit
 
+implementation:
+	make pack place route fasm
 
 all:
-	make synthesis pack place route write_fasm write_bitstream
+	make synthesis implementation bitstream
 
 clean:
-	@ rm -rf ${BOARD_BUILDDIR}
+	@ rm -rf ${BUILDDIR}
