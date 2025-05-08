@@ -65,10 +65,27 @@ ifneq (${SURELOG_CMD},)
 	SURELOG_OPT := -s ${SURELOG_CMD}
 endif
 
+FLAGS_GHDL += -fexplicit -frelaxed-rules --syn-binding -fsynopsys -Wlibrary --std=08
 
 # ============================== Targets
 
-synthesis:
+vhdl_to_verilog:
+	@ echo ---------------------- Converting VHDL RTL to Verilog ---------------------
+	[ -d $(BOARD_BUILDDIR) ] || mkdir -p $(BOARD_BUILDDIR)
+	ghdl -i $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) -Pbuild ${SOURCES}
+	ghdl -i $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) -Pbuild ./rtl/*.vhd
+	ghdl -m $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) $(TOP)
+	ghdl synth $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) -Pbuild --out=verilog $(TOP) > $(BOARD_BUILDDIR)/$(TOP).v
+	@ echo ------------------------------- DONE -----------------------------
+	@ echo " "
+
+synthesis_vhdl:
+	[ -d $(BOARD_BUILDDIR) ] || mkdir -p $(BOARD_BUILDDIR)
+	make vhdl_to_verilog
+	cd ${BOARD_BUILDDIR} && \
+		symbiflow_synth -t ${TOP} ${SURELOG_OPT} -v ${BOARD_BUILDDIR}/${TOP}.v -d ${BITSTREAM_DEVICE} -p ${PARTNAME} ${XDC_CMD}
+
+synthesis_verilog:
 	[ -d $(BOARD_BUILDDIR) ] || mkdir -p $(BOARD_BUILDDIR)
 	cd ${BOARD_BUILDDIR} && \
 		symbiflow_synth -t ${TOP} ${SURELOG_OPT} -v ${SOURCES} -d ${BITSTREAM_DEVICE} -p ${PARTNAME} ${XDC_CMD}
@@ -104,7 +121,7 @@ implementation:
 	make pack place route fasm
 
 all:
-	make synthesis implementation bitstream
+	make synthesis_vhdl implementation bitstream
 
 clean:
 	@ rm -rf ${BUILDDIR}
