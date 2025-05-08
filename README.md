@@ -46,11 +46,25 @@ conda activate f4pga_xc7
 ```
 
 ### How to run:
-- Available `TARGET` are `basys3`, `nexys4ddr`
+- Available `TARGET` are `basys3` and `nexys4ddr`.
 
+- Update the following variables in the `Makefile`.
+```bash
+# list all your design files
+SOURCES := ${current_dir}/rtl/*.vhd
+
+# name of the top module
+TOP := counter
 ```
+
+- To generate required outputs run the following commands.
+```bash
 # Synthesis:
-make synthesis TARGET="basys3"
+# for VHDL design files
+make synthesis_vhdl TARGET="basys3"
+
+# for verilog design files
+make synthesis_verilog TARGET="basys3"
 
 # Place and Route:
 make implementation TARGET="basys3"
