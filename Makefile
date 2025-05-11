@@ -4,15 +4,18 @@ current_dir	:= $(PWD)
 
 # INFO: change these variables accordingly to your project needs
 # ==============================================================
-SOURCES		:= ${current_dir}/rtl/*.v
-TOP			:= counter
-TARGET		:= basys3
-XDC			:= ${current_dir}/constraint/${TARGET}.xdc
+# for VHDL / Verilog / SystemVerilog RTL files
+# RTL		:= ${current_dir}/rtl/*.sv
+RTL		:= ${current_dir}/rtl/*.vhd
+
+TOP		:= counter_seven_segment_display
+TARGET	:= basys3
+XDC		:= ${current_dir}/constraint/${TARGET}.xdc
 # ==============================================================
 
 # Build directories
-BUILDDIR		:= ${current_dir}/build
-BOARD_BUILDDIR	:= ${BUILDDIR}/${TARGET}
+DIR_BUILD		:= ${current_dir}/build
+DIR_BOARD_BUILD	:= ${DIR_BUILD}/${TARGET}
 
 # Set board properties based on TARGET variable
 ifeq ($(TARGET),arty_35)
@@ -65,63 +68,87 @@ ifneq (${SURELOG_CMD},)
 	SURELOG_OPT := -s ${SURELOG_CMD}
 endif
 
+# GHDL runtime options
 FLAGS_GHDL += -fexplicit -frelaxed-rules --syn-binding -fsynopsys -Wlibrary --std=08
+
+# shell colors
+GREEN=\033[0;32m
+RED=\033[0;31m
+BLUE=\033[0;34m
+END=\033[0m
 
 # ============================== Targets
 
 vhdl_to_verilog:
-	@ echo ---------------------- Converting VHDL RTL to Verilog ---------------------
-	[ -d $(BOARD_BUILDDIR) ] || mkdir -p $(BOARD_BUILDDIR)
-	ghdl -i $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) -Pbuild ${SOURCES}
-	ghdl -i $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) -Pbuild ./rtl/*.vhd
-	ghdl -m $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) $(TOP)
-	ghdl synth $(FLAGS_GHDL) --workdir=$(BOARD_BUILDDIR) -Pbuild --out=verilog $(TOP) > $(BOARD_BUILDDIR)/$(TOP).v
-	@ echo ------------------------------- DONE -----------------------------
-	@ echo " "
+	@ bash -c 'echo -e "$(GREEN) -------------------- Converting VHDL to Verilog -------------------- $(END)"'
+	@ [ -d $(DIR_BOARD_BUILD) ] || mkdir -p $(DIR_BOARD_BUILD)
+	@ ghdl -i $(FLAGS_GHDL) --workdir=$(DIR_BOARD_BUILD) -Pbuild ${RTL}
+	@ ghdl -m $(FLAGS_GHDL) --workdir=$(DIR_BOARD_BUILD) $(TOP)
+	@ ghdl synth $(FLAGS_GHDL) --workdir=$(DIR_BOARD_BUILD) -Pbuild --out=verilog $(TOP) \
+	> $(DIR_BOARD_BUILD)/$(TOP).v
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 synthesis_vhdl:
-	[ -d $(BOARD_BUILDDIR) ] || mkdir -p $(BOARD_BUILDDIR)
+	@ bash -c 'echo -e "$(GREEN) ----------------------------- Synthesis ---------------------------- $(END)"'
+	@ [ -d $(DIR_BOARD_BUILD) ] || mkdir -p $(DIR_BOARD_BUILD)
 	make vhdl_to_verilog
-	cd ${BOARD_BUILDDIR} && \
-		symbiflow_synth -t ${TOP} ${SURELOG_OPT} -v ${BOARD_BUILDDIR}/${TOP}.v -d ${BITSTREAM_DEVICE} -p ${PARTNAME} ${XDC_CMD}
+	@ cd $(DIR_BOARD_BUILD) && \
+		symbiflow_synth -t $(TOP) $(SURELOG_OPT) -v $(DIR_BOARD_BUILD)/$(TOP).v -d $(BITSTREAM_DEVICE) -p $(PARTNAME) $(XDC_CMD)
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 synthesis_verilog:
-	[ -d $(BOARD_BUILDDIR) ] || mkdir -p $(BOARD_BUILDDIR)
-	cd ${BOARD_BUILDDIR} && \
-		symbiflow_synth -t ${TOP} ${SURELOG_OPT} -v ${SOURCES} -d ${BITSTREAM_DEVICE} -p ${PARTNAME} ${XDC_CMD}
+	@ bash -c 'echo -e "$(GREEN) ----------------------------- Synthesis ---------------------------- $(END)"'
+	[ -d $(DIR_BOARD_BUILD) ] || mkdir -p $(DIR_BOARD_BUILD)
+	cd $(DIR_BOARD_BUILD) && \
+		symbiflow_synth -t $(TOP) $(SURELOG_OPT) -v ${RTL} -d $(BITSTREAM_DEVICE) -p $(PARTNAME) $(XDC_CMD)
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 pack:
-	cd ${BOARD_BUILDDIR} && \
-		symbiflow_pack -e ${TOP}.eblif -d ${DEVICE} ${SDC_CMD}
+	@ bash -c 'echo -e "$(GREEN) ----------------------------- Packing ------------------------------ $(END)"'
+	cd $(DIR_BOARD_BUILD) && \
+		symbiflow_pack -e $(TOP).eblif -d $(DEVICE) $(SDC_CMD)
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 place:
-	cd ${BOARD_BUILDDIR} && \
-		symbiflow_place -e ${TOP}.eblif -d ${DEVICE} ${PCF_CMD} -n ${TOP}.net -P ${PARTNAME} ${SDC_CMD}
+	@ bash -c 'echo -e "$(GREEN) ----------------------------- Placement ---------------------------- $(END)"'
+	cd $(DIR_BOARD_BUILD) && \
+		symbiflow_place -e $(TOP).eblif -d $(DEVICE) $(PCF_CMD) -n $(TOP).net -P $(PARTNAME) $(SDC_CMD)
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 route:
-	cd ${BOARD_BUILDDIR} && \
-		symbiflow_route -e ${TOP}.eblif -d ${DEVICE} ${SDC_CMD}
+	@ bash -c 'echo -e "$(GREEN) ----------------------------- Routing ------------------------------ $(END)"'
+	cd $(DIR_BOARD_BUILD) && \
+		symbiflow_route -e $(TOP).eblif -d $(DEVICE) $(SDC_CMD)
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 fasm:
-	cd ${BOARD_BUILDDIR} && \
-		symbiflow_write_fasm -e ${TOP}.eblif -d ${DEVICE}
+	@ bash -c 'echo -e "$(GREEN) -------------------------------- Fasm ------------------------------- $(END)"'
+	cd $(DIR_BOARD_BUILD) && \
+		symbiflow_write_fasm -e $(TOP).eblif -d $(DEVICE)
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 bitstream:
-	cd ${BOARD_BUILDDIR} && \
-		symbiflow_write_bitstream -d ${BITSTREAM_DEVICE} -f ${TOP}.fasm -p ${PARTNAME} -b ${TOP}.bit
+	@ bash -c 'echo -e "$(GREEN) ------------------------ Bitstream Generation ----------------------- $(END)"'
+	cd $(DIR_BOARD_BUILD) && \
+		symbiflow_write_bitstream -d $(BITSTREAM_DEVICE) -f $(TOP).fasm -p $(PARTNAME) -b $(TOP).bit
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 upload:
+	@ bash -c 'echo -e "$(GREEN) -------------------------- Bitstream Upload ------------------------- $(END)"'
 	if [ $(TARGET)='unsupported' ]; then \
 		echo "The commands needed to download the bitstreams to the board type specified are not currently supported by the F4PGA makefiles. \
     Please see documentation for more information."; \
 	fi
-	openFPGALoader -b ${OFL_BOARD} ${BOARD_BUILDDIR}/${TOP}.bit
+	openFPGALoader -b ${OFL_BOARD} $(DIR_BOARD_BUILD)/$(TOP).bit
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 implementation:
+	@ bash -c 'echo -e "$(GREEN) -------------------------- Implementation --------------------------- $(END)"'
 	make pack place route fasm
+	@ bash -c 'echo -e "$(GREEN) --------------------------------------------------------------------- $(END)"'
 
 all:
 	make synthesis_vhdl implementation bitstream
 
 clean:
-	@ rm -rf ${BUILDDIR}
+	@ rm -rf ${DIR_BUILD}
